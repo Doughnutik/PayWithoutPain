@@ -13,7 +13,7 @@ class MessageBuilder:
             status_text = "📸 Скриншот отправлен"
         elif debt.status == DebtStatus.PAUSED:
             status_text = "⏸️ Долг на паузе"
-        text = f"""📌 **Счёт: {bill.id}**
+        text = f"""📌 **Долг: {debt.id}**
 📋 **Описание: {bill.description}**
 💰 **Ваш долг: {debt.amount:.2f}{bill.currency}**
 👤 **Плательщик: {payer_name}**

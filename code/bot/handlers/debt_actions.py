@@ -3,41 +3,50 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import StateFilter, Command
 from aiogram.fsm.context import FSMContext
 
-from bot.states import PaymentProof
-from bot.keyboards import get_payment_keyboard, get_confirmation_keyboard
-from storage.neo4j_storage import storage
+from bot.states import PaymentProof, DebtStatusUpdate
+from bot.keyboards import get_confirmation_keyboard
+from storage.neo4j_storage import storage, DebtStatus, Debt
 
 router = Router()
 
 
-@router.callback_query(F.data.startswith("pay"))
-async def handle_pay(callback: CallbackQuery, state: FSMContext):
-    debt_id = callback.data.split()[1]
-    debt = await storage.get_debt_by_id(debt_id)
+@router.message(PaymentProof.waiting_for_id)
+async def handle_id(message: Message, state: FSMContext):
+    debt_id = message.text
+    debt_info = await storage.get_debt_by_id(debt_id)
 
-    if not debt:
-        await callback.answer("❌ Долг не найден", show_alert=True)
+    if not debt_info or debt_info.debtor_id != message.from_user.id:
+        await message.answer("❌ Неверный id долга. Пожалуйста, попробуйте снова:")
         return
+    
+    currency = (await storage.get_bill_by_id(debt_info.bill_id)).currency
+    
+    await state.update_data(debt_id=debt_id, total_amount=debt_info.amount, currency=currency)
+    await state.set_state(PaymentProof.waiting_for_amount)
+    await message.answer("Укажите сумму долга, которую хотите оплатить:")
 
-    await state.update_data(debt_id=debt_id)
+@router.message(PaymentProof.waiting_for_amount)
+async def handle_amount(message: Message, state: FSMContext):
+    amount = float(message.text.replace(",", ".").strip())
+    if amount <= 0:
+        await message.answer("❌ Неверная сумма. Введите положительное число:")
+        return
+    
+    data = await state.get_data()
+    debt_id = data.get("debt_id")
+    total_amount = data.get("total_amount")
+    currency = data.get("currency")
+    
+    if amount > total_amount:
+        await message.answer(f"❌ Сумма не может быть больше общего долга {total_amount:.2f}{currency}. Введите корректную сумму:")
+        return
+    
+    await state.update_data(paid_amount=amount)
     await state.set_state(PaymentProof.waiting_for_screenshot)
-    await callback.message.answer(
-        "📸 Отправьте скриншот оплаты:\n\n"
-        "(или отправьте /cancel для отмены)"
-    )
-    await callback.answer()
-
+    await message.answer("Пожалуйста, отправьте скриншот оплаты в этот чат:")
 
 @router.message(F.photo, StateFilter(PaymentProof.waiting_for_screenshot))
 async def handle_screenshot(message: Message, state: FSMContext):
-    data = await state.get_data()
-    debt_id = data.get("debt_id")
-
-    if not debt_id:
-        await message.answer("❌ Ошибка: нет активного долга")
-        await state.clear()
-        return
-
     screenshot_id = message.photo[-1].file_id
     await storage.update_debt_status(debt_id, "paid", screenshot_id)
 
@@ -55,12 +64,6 @@ async def handle_screenshot(message: Message, state: FSMContext):
         reply_markup=get_confirmation_keyboard(debt_id)
     )
 
-    await state.clear()
-
-
-@router.message(Command("cancel"), StateFilter(PaymentProof.waiting_for_screenshot))
-async def cancel_screenshot(message: Message, state: FSMContext):
-    await message.answer("❌ Отправка скриншота отменена.")
     await state.clear()
 
 
@@ -101,16 +104,36 @@ async def handle_reject(callback: CallbackQuery):
     )
     await callback.answer()
 
-
-@router.callback_query(F.data.startswith("archive_"))
-async def handle_archive(callback: CallbackQuery):
-    bill_id = callback.data.split("_")[1]
-    bill = await storage.get_bill(bill_id)
-
-    if bill.creator_id != callback.from_user.id:
-        await callback.answer("❌ Только создатель может архивировать счёт", show_alert=True)
+    
+@router.message(DebtStatusUpdate.waiting_for_resume)
+async def handle_resume_status(message: Message):
+    debt_id = message.text.strip()
+    debt_info = await storage.get_debt_by_id(debt_id)
+    
+    if not debt_info or debt_info.debtor_id != message.from_user.id:
+        await message.answer("❌ Неверный id долга. Пожалуйста, попробуйте снова:")
         return
+    
+    if debt_info.status != DebtStatus.PAUSED:
+        await message.answer("❌ Этот долг не на паузе. Пожалуйста, введите id другого долга:")
+        return
+    
+    await storage.update_debt_status(debt_id, DebtStatus.ACTIVE.value)
+    await message.answer("▶️ Долг активен")
+    
 
-    await storage.archive_bill(bill_id)
-    await callback.message.answer(f"🗄️ Счёт `{bill_id}` заархивирован. Уведомления отключены.")
-    await callback.answer()
+@router.message(DebtStatusUpdate.waiting_for_pause)
+async def handle_pause_status(message: Message):
+    debt_id = message.text.strip()
+    debt_info = await storage.get_debt_by_id(debt_id)
+    
+    if not debt_info or debt_info.debtor_id != message.from_user.id:
+        await message.answer("❌ Неверный id долга. Пожалуйста, попробуйте снова:")
+        return
+    
+    if debt_info.status != DebtStatus.ACTIVE:
+        await message.answer("❌ Этот долг не активен. Пожалуйста, введите id другого долга:")
+        return
+    
+    await storage.update_debt_status(debt_id, DebtStatus.PAUSED.value)
+    await message.answer("⏸️ Долг на паузе")

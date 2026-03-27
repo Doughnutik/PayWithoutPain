@@ -1,11 +1,10 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from bot.states import BillCreation
-from storage.mock_storage import storage
-from storage.neo4j_storage import storage, DebtStatus
+from bot.states import BillCreation, DebtStatusUpdate, PaymentProof
+from storage.neo4j_storage import storage
 from services.message_builder import MessageBuilder
 
 router = Router()
@@ -23,8 +22,9 @@ async def cmd_start(message: Message):
         "/newbill — создать новый счёт\n"
         "/mybills — мои активные счета\n"
         "/mydebts — мои активные долги\n"
-        "/pause {debt_id} - отложить долг\n"
-        "/resume {debt_id} - возобновить долг\n"
+        "/pay - оплатить (можно частично) долг\n"
+        "/pause - отложить долг\n"
+        "/resume - возобновить долг\n"
         "/help — справка"
     )
 
@@ -92,40 +92,23 @@ async def cmd_mydebts(message: Message):
     await message.answer(text)
     
     
-@router.callback_query(F.data.startswith("resume"))
-async def callback_resume(callback: CallbackQuery):
-    debt_id = callback.data.split()[1]
-    user_id = callback.from_user.id
+@router.message(Command("resume"))
+async def cmd_resume(message: Message, state: FSMContext):
+    await state.set_state(DebtStatusUpdate.waiting_for_resume)
+    await message.answer(
+        "Введите id долга, который хотите возобновить:"
+    )
     
-    debt_info = await storage.get_debt_by_id(debt_id)
-    
-    if not debt_info or debt_info.debtor_id != user_id:
-        await callback.answer("❌ Доступ запрещён", show_alert=True)
-        return
-    
-    if debt_info.status != DebtStatus.PAUSED:
-        await callback.answer("ℹ️ Не на паузе", show_alert=True)
-        return
-    
-    await storage.update_debt_status(debt_id, DebtStatus.ACTIVE.value)
-    
-    await callback.answer("▶️ Долг активен")
-    
-@router.callback_query(F.data.startswith("pause"))
-async def callback_pause(callback: CallbackQuery):
-    debt_id = callback.data.split()[1]
-    user_id = callback.from_user.id
-    
-    debt_info = await storage.get_debt_by_id(debt_id)
-    
-    if not debt_info or debt_info.debtor_id != user_id:
-        await callback.answer("❌ Доступ запрещён", show_alert=True)
-        return
-    
-    if debt_info.status != DebtStatus.ACTIVE:
-        await callback.answer("ℹ️ Не активен", show_alert=True)
-        return
-    
-    await storage.update_debt_status(debt_id, DebtStatus.PAUSED.value)
-    
-    await callback.answer("⏸️ Долг на паузе")
+@router.message(Command("pause"))
+async def cmd_pause(message: Message, state: FSMContext):
+    await state.set_state(DebtStatusUpdate.waiting_for_pause)
+    await message.answer(
+        "Введите id долга, который хотите поставить на паузу:"
+    )
+
+@router.message(Command("pay"))
+async def cmd_pay(message: Message, state: FSMContext):
+    await state.set_state()
+    await message.answer(
+        "Введите id долга, который хотите оплатить:"
+    )
