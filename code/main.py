@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from database.neo4j_client import neo4j_client
+from neo4j_database.neo4j_client import neo4j_client
 from bot.handlers import commands_router, bill_creation_router, debt_actions_router
 from services.scheduler import BotScheduler
 from services.notification_service import notification_service, NotificationService

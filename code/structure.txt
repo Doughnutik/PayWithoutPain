@@ -1,0 +1,26 @@
+Bill:
+ 	id: str
+    creator_id: int
+    amount: float
+    currency: str = "RUB"
+    description: str = ""
+    statuc = "active" | "closed"
+    created_at: datetime = field(default_factory=datetime.now)
+    changed_at: datetime = field(default_factory=datetime.now)
+Debt:
+	id: str
+    bill_id: str
+    debtor_id: int
+    payer_id: int
+    amount: float
+    status: str = "active" | "paused" | "pending" | "closed"
+    created_at: datetime = field(default_factory=datetime.now)
+    changed_at: datetime = field(default_factory=datetime.now)
+    notifications_count: int = 0
+    last_notification_at: Optional[datetime] = None
+
+User:
+	telegram_id: int
+    username: str
+    first_name: str
+    created_at: datetime = field(default_factory=datetime.now)

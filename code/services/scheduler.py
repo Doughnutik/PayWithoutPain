@@ -15,21 +15,20 @@ class BotScheduler:
         self.notification_service = NotificationService(bot)
 
     def start(self):
-        """Запускает планировщик"""
-        # Напоминания каждый день в 10:00
+        # Напоминания каждое день в 12:00
         self.scheduler.add_job(
-            self._send_reminders,
-            CronTrigger(hour=10, minute=0),
-            id="daily_reminders",
-            name="Ежедневные напоминания о долгах",
+            self.send_reminders,
+            CronTrigger(hour=12, minute=0),
+            id="day",
+            name="Дневное напоминания о долгах",
             replace_existing=True
         )
 
         # Напоминания каждый вечер в 20:00
         self.scheduler.add_job(
-            self._send_reminders,
+            self.send_reminders,
             CronTrigger(hour=20, minute=0),
-            id="evening_reminders",
+            id="evening",
             name="Вечерние напоминания о долгах",
             replace_existing=True
         )
@@ -38,17 +37,13 @@ class BotScheduler:
         logger.info("✅ Scheduler started")
 
     def stop(self):
-        """Останавливает планировщик"""
         self.scheduler.shutdown()
         logger.info("✅ Scheduler stopped")
 
-    async def _send_reminders(self):
-        """Задача отправки напоминаний"""
+    async def send_reminders(self):
         logger.info("🔔 Starting reminder job...")
         try:
             stats = await self.notification_service.send_all_reminders()
             logger.info(f"✅ Reminder job completed: {stats}")
         except Exception as e:
             logger.error(f"❌ Reminder job failed: {e}")
-
-scheduler = None

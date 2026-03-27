@@ -1,0 +1,2 @@
+user = ""
+print(user.lstrip('@'))
