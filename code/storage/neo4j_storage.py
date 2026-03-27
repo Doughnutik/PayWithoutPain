@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class User:
     telegram_id: int
+    first_name: str
     username: Optional[str] = None
-    first_name: Optional[str] = None
     created_at: datetime = datetime.now()
 
     @classmethod
@@ -24,7 +24,7 @@ class User:
         return cls(
             telegram_id=user['telegram_id'],
             username=user.get("username"),
-            first_name=user.get("first_name"),
+            first_name=user["first_name"],
             created_at=user['created_at']
         )
 
@@ -59,7 +59,7 @@ class Debt:
             status=DebtStatus(debt['status']),
             created_at=debt["created_at"],
             changed_at=debt["changed_at"],
-            notifications_count=debt["notification_count"],
+            notifications_count=debt["notifications_count"],
             last_notification_at=debt.get("last_notification_at")
         )
 
@@ -95,12 +95,12 @@ class Bill:
 
 
 class Neo4jStorage:
-    async def create_update_user(self, telegram_id: int, username: str, first_name: str) -> User:
+    async def create_update_user(self, telegram_id: int, username: Optional[str], first_name: str) -> User:
         result = await neo4j_client.execute_write(
             queries.CREATE_UPDATE_USER,
             {
                 "telegram_id": telegram_id,
-                "username": username.lstrip("@"),
+                "username": username.lstrip("@") if username else None,
                 "first_name": first_name
             }
         )
@@ -139,6 +139,7 @@ class Neo4jStorage:
                 "description": description
             }
         )
+        
         return Bill.from_neo4j(result[0])
     
     async def get_bill_by_id(self, bill_id: str) -> Optional[Bill]:

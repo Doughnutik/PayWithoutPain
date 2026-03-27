@@ -7,13 +7,13 @@ from config import BOT_TOKEN
 from neo4j_database.neo4j_client import neo4j_client
 from bot.handlers import commands_router, bill_creation_router, debt_actions_router
 from services.scheduler import BotScheduler
-from services.notification_service import notification_service, NotificationService
+from services.notification_service import NotificationService
+
 
 logging.basicConfig(level=logging.INFO)
 
 
 async def on_startup(bot: Bot):
-    """Вызывается при запуске бота"""
     global notification_service, scheduler
     
     logging.info("Bot started, connecting to Neo4j...")
@@ -23,22 +23,18 @@ async def on_startup(bot: Bot):
     except Exception as e:
         logging.error(f"❌ Neo4j connection failed: {e}")
 
-    # Инициализируем сервис уведомлений
     notification_service = NotificationService(bot)
     
-    # Запускаем планировщик
     scheduler = BotScheduler(bot)
     scheduler.start()
     logging.info("✅ Notification scheduler started")
 
 
 async def on_shutdown(bot: Bot):
-    """Вызывается при остановке бота"""
     logging.info("Bot shutting down, closing Neo4j connection...")
     await neo4j_client.close()
     logging.info("✅ Neo4j connection closed")
 
-    # Останавливаем планировщик
     if scheduler:
         scheduler.stop()
         logging.info("✅ Scheduler stopped")

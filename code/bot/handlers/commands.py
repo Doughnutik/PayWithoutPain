@@ -3,16 +3,16 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from bot.states import BillCreation, PaymentProof
-from bot.keyboards import get_split_mode_keyboard
+from bot.states import BillCreation
 from storage.mock_storage import storage
-from storage.neo4j_storage import storage
+from storage.neo4j_storage import storage, DebtStatus
+from services.message_builder import MessageBuilder
 
 router = Router()
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
-    await storage.get_or_create_user(
+    await storage.create_update_user(
         message.from_user.id,
         message.from_user.username,
         message.from_user.first_name
@@ -23,8 +23,8 @@ async def cmd_start(message: Message):
         "/newbill — создать новый счёт\n"
         "/mybills — мои активные счета\n"
         "/mydebts — мои активные долги\n"
-        "/pause - отложить долг\n"
-        "/resume - возобновить долг\n"
+        "/pause {debt_id} - отложить долг\n"
+        "/resume {debt_id} - возобновить долг\n"
         "/help — справка"
     )
 
@@ -41,6 +41,7 @@ async def cmd_help(message: Message):
         "6. Если всё верно, долг закрывается\n"
         "7. Если у должника сейчас нет возможности оплатить, долг можно поставить на паузу. Уведомления по нему перестанут приходить, но это увидит плательщик\n"
         "8. В любой момент долг можно снять с паузы\n"
+        "9. Долг можно закрыть частично\n"
     )
 
 
@@ -62,14 +63,9 @@ async def cmd_mybills(message: Message):
 
     text = "⚡️ Ваши счета:\n\n"
     for bill in bills:
-        debtors: list[tuple[str, float, str]] = bill.get_debtors() # get username, amount_left, debt_status
-        text += f"Cчёт: {bill.id}\n"
-        text += f"Описание: {bill.description}\n"
-        text += f"Осталось: {bill.amount_left:.2f} + {bill.currency}\n"
-        text += "Должники:\n"
-        for debtor in debtors:
-            text += f"Username: @{debtor[0]}, amount: {debtor[1]:.2f}{bill.currency}, status: {debtor[2]}\n"
-        text += "\n"
+        debts = await storage.get_debts_for_bill(bill.id)
+        debtors = [await storage.get_user_by_id(debt.debtor_id) for debt in debts]
+        text += MessageBuilder.build_bill_message(bill, list(zip(debts, debtors)))
     await message.answer(text)
 
 
@@ -82,12 +78,16 @@ async def cmd_mydebts(message: Message):
 
     text = "‼️ **Ваши долги:**\n\n"
     for debt in debts:
-        bill = await storage.get_bill(debt.bill_id)
-        text += f"Cчёт: {bill.id}\n"
-        text += f"Описание: {bill.description}\n"
-        text += f"Остаток: {debt.amount:.2f}{bill.currency}\n"
-        text += f"Плательщик: @{await storage.get_or_create_user(debt.payer_id).username}\n"
-        text += f"Статус: {debt.status}\n\n"
+        bill = await storage.get_bill_by_id(debt.bill_id)
+        payer = await storage.get_user_by_id(bill.creator_id)
+        if not bill or not payer:
+            await message.answer("Ошибка при загрузке данных по долгу. Пожалуйста, попробуйте снова.")
+            continue
+        text += MessageBuilder.build_debt_message(
+            debt,
+            bill,
+            payer
+        )
 
     await message.answer(text)
     
@@ -97,19 +97,35 @@ async def callback_resume(callback: CallbackQuery):
     debt_id = callback.data.split()[1]
     user_id = callback.from_user.id
     
-    debt_info = await storage.get_debt_info(debt_id)
+    debt_info = await storage.get_debt_by_id(debt_id)
     
-    if not debt_info or debt_info["debt"].debtor_id != user_id:
+    if not debt_info or debt_info.debtor_id != user_id:
         await callback.answer("❌ Доступ запрещён", show_alert=True)
         return
     
-    if debt_info["debt"].status != "paused":
+    if debt_info.status != DebtStatus.PAUSED:
         await callback.answer("ℹ️ Не на паузе", show_alert=True)
         return
     
-    await storage.resume_debt(debt_id)
+    await storage.update_debt_status(debt_id, DebtStatus.ACTIVE.value)
     
-    await callback.message.edit_text(
-        callback.message.text + "\n\n▶️ **Возобновлено**"
-    )
     await callback.answer("▶️ Долг активен")
+    
+@router.callback_query(F.data.startswith("pause"))
+async def callback_pause(callback: CallbackQuery):
+    debt_id = callback.data.split()[1]
+    user_id = callback.from_user.id
+    
+    debt_info = await storage.get_debt_by_id(debt_id)
+    
+    if not debt_info or debt_info.debtor_id != user_id:
+        await callback.answer("❌ Доступ запрещён", show_alert=True)
+        return
+    
+    if debt_info.status != DebtStatus.ACTIVE:
+        await callback.answer("ℹ️ Не активен", show_alert=True)
+        return
+    
+    await storage.update_debt_status(debt_id, DebtStatus.PAUSED.value)
+    
+    await callback.answer("⏸️ Долг на паузе")

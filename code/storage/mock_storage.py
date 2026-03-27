@@ -29,7 +29,7 @@ class Debt:
 class Bill:
     id: str
     creator_id: int
-    amount_left: float
+    amount: float
     currency: str = "RUB"
     description: str = ""
     status: str = "active"  # active, closed, archived
@@ -62,7 +62,7 @@ class MockStorage:
         bill = Bill(
             id=bill_id,
             creator_id=creator_id,
-            amount_left=amount,
+            amount=amount,
             description=description
         )
         self.bills[bill_id] = bill
@@ -100,9 +100,9 @@ class MockStorage:
         debt.status = "confirmed"
         debt.changed_at = datetime.now()
         bill = self.bills[debt.bill_id]
-        bill.amount_left -= debt.amount
+        bill.amount -= debt.amount
         bill.changed_at = datetime.now()
-        if bill.amount_left <= 0:
+        if bill.amount <= 0:
             bill.status = "closed"
         return bill
 

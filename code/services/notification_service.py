@@ -7,7 +7,7 @@ from storage.neo4j_storage import storage, Debt, DebtStatus
 from bot.keyboards import get_payment_keyboard
 from enum import Enum
 
-from message_builder import MessageBuilder
+from services.message_builder import MessageBuilder
 
 logger = logging.getLogger(__name__)
 

@@ -88,7 +88,7 @@ RETURN debt
 
 GET_USER_DEBTS = """
 MATCH (debtor:User {telegram_id: $telegram_id})-[:OWES]->(debt:Debt)
-WHERE debt.status != 'closed'
+WHERE debt.status <> 'closed'
 RETURN debt ORDER BY debt.changed_at ASC
 """
 
@@ -111,7 +111,7 @@ RETURN debt
 
 GET_DEBTS_FOR_BILL = """
 MATCH (bill:Bill {id: $bill_id})-[:HAS_DEBT]->(debt:Debt)
-WHERE debt.status != 'closed'
+WHERE debt.status <> 'closed'
 RETURN debt ORDER BY debt.changed_at ASC
 """
 
