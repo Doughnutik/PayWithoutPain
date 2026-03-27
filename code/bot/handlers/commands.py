@@ -76,7 +76,7 @@ async def cmd_mydebts(message: Message):
         await message.answer("🎉 У вас нет активных долгов!")
         return
 
-    text = "‼️ **Ваши долги:**\n\n"
+    text = "‼️ Ваши долги:\n\n"
     for debt in debts:
         bill = await storage.get_bill_by_id(debt.bill_id)
         payer = await storage.get_user_by_id(bill.creator_id)

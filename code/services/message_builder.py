@@ -17,7 +17,7 @@ class MessageBuilder:
 📋 **Описание: {bill.description}**
 💰 **Ваш долг: {debt.amount:.2f}{bill.currency}**
 👤 **Плательщик: {payer_name}**
-    **Статус: {status_text}**\n
+    Статус: {status_text}\n
 """
 
         return text
@@ -29,7 +29,7 @@ class MessageBuilder:
         
         text = f"""📌 **Счёт: {bill.id}**
 💰 **Сумма: {bill.amount:.2f}{bill.currency}**
-📋 **Описание: {bill.description}\n**
+📋 **Описание: {bill.description}**\n
 """
 
         for debt, debtor in debts_info:
@@ -48,3 +48,4 @@ class MessageBuilder:
             text += f"  Статус: {status_text}\n\n"
 
         return text
+    
