@@ -1,22 +1,17 @@
 import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import StateFilter, Command
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 
 from bot.states import PaymentProof, PaymentConfirmation
-from bot.keyboards import get_debt_keyboard, get_confirmation_keyboard
-from storage.neo4j_storage import storage, DebtStatus
-from neo4j_database.neo4j_client import neo4j_client
+from bot.keyboards import get_confirmation_keyboard
+from storage import storage, DebtStatus
 from services.message_builder import MessageBuilder
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-
-# ============================================================================
-# 1️⃣ ДОЛЖНИК: Нажимает "Оплатить" → вводит сумму → отправляет скриншот
-# ============================================================================
 
 @router.callback_query(F.data.startswith("pay_"))
 async def handle_pay_request(callback: CallbackQuery, state: FSMContext):
@@ -30,7 +25,7 @@ async def handle_pay_request(callback: CallbackQuery, state: FSMContext):
         return
     
     if debt.status != DebtStatus.ACTIVE:
-        await callback.answer(f"ℹ️ Текущий статус: {debt.status.value} не равен {DebtStatus.ACTIVE.value}", show_alert=True)
+        await callback.answer(f"ℹ️ Текущий статус {debt.status.value} не равен {DebtStatus.ACTIVE.value}", show_alert=True)
         return
     
     bill = await storage.get_bill_by_id(debt.bill_id)
@@ -39,7 +34,7 @@ async def handle_pay_request(callback: CallbackQuery, state: FSMContext):
     await state.set_state(PaymentProof.waiting_for_amount)
     
     text = MessageBuilder.build_debt_message(debt, bill, await storage.get_user_by_id(bill.creator_id))
-    text += "\n**Введите сумму оплаты**\n❌ /cancel — отменить"
+    text += "Введите сумму оплаты:"
     await callback.message.answer(
         text
     )
@@ -48,7 +43,12 @@ async def handle_pay_request(callback: CallbackQuery, state: FSMContext):
 
 @router.message(PaymentProof.waiting_for_amount)
 async def handle_payment_amount(message: Message, state: FSMContext):
-    amount = float(message.text.replace(",", ".").strip())
+    text = message.text.replace(",", ".").strip()
+    if not text.replace(".", "", 1).isdigit():
+        await message.answer("❌ Введите число:")
+        return
+    
+    amount = float(text)
     if amount <= 0:
         await message.answer("❌ Введите положительное число:")
         return
@@ -68,8 +68,7 @@ async def handle_payment_amount(message: Message, state: FSMContext):
     await state.set_state(PaymentProof.waiting_for_screenshot)
     
     await message.answer(
-        f"📸 **Отправьте скриншот оплаты на {amount:.2f}{bill.currency}**\n\n"
-        f"❌ /cancel — отменить"
+        f"📸 Отправьте скриншот оплаты на {amount:.2f}{bill.currency}:"
     )
 
 
@@ -84,15 +83,12 @@ async def handle_screenshot_photo(message: Message, state: FSMContext):
     
     await storage.update_debt_status(debt.id, DebtStatus.PENDING.value)
     
-    # Уведомляем должника
     await message.answer(
         f"✅ **Скриншот отправлен!**\n\n"
         f"💰 Сумма оплаты: {paid_amount:.2f}{bill.currency}\n"
         f"📝 Счёт: {bill.description}\n\n"
         f"Ожидайте подтверждения от плательщика."
     )
-    
-    # 🆕 ОТПРАВЛЯЕМ СКРИНШОТ ПЛАТЕЛЬЩИКУ
     
     debtor_name = '@' + message.from_user.username if message.from_user.username else message.from_user.first_name
     try:
@@ -122,22 +118,11 @@ async def handle_screenshot_photo(message: Message, state: FSMContext):
     await state.clear()
 
 
-@router.message(Command("cancel"), StateFilter(PaymentProof.waiting_for_amount, PaymentProof.waiting_for_screenshot))
-async def cancel_payment(message: Message, state: FSMContext):
-    await message.answer("❌ Оплата отменена")
-    await state.clear()
-
-
-# ============================================================================
-# 2️⃣ ПЛАТЕЛЬЩИК: Получает скриншот + сумму → кнопки "Принять/Отклонить"
-# ============================================================================
-
-@router.callback_query(F.data.startswith("confirm_"))
+@router.callback_query(F.data.startswith("confirm_pay"))
 async def handle_confirm_payment(callback: CallbackQuery):
-    """Плательщик подтверждает частичную оплату"""
     parts = callback.data.split("_")
-    debt_id = parts[1]
-    paid_amount = float(parts[2])
+    debt_id = parts[2]
+    paid_amount = float(parts[3])
     payer_id = callback.from_user.id
     
     debt = await storage.get_debt_by_id(debt_id)
@@ -156,7 +141,6 @@ async def handle_confirm_payment(callback: CallbackQuery):
         await callback.answer(f"ℹ️ Текущий статус {debt.status.value} не равен {DebtStatus.PENDING.value}", show_alert=True)
         return
     
-    # ✅ Увеличиваем paid_amount
     debt = await storage.decrease_debt_amount(debt_id, paid_amount)
     if not debt:
         await callback.answer(f"❌ Ошибка при обновлении долга {debt_id}", show_alert=True)
@@ -167,14 +151,11 @@ async def handle_confirm_payment(callback: CallbackQuery):
         await callback.answer(f"❌ Ошибка при обновлении счёта {bill.id}", show_alert=True)
         return
     
-    # Обновляем сообщение плательщика
     status_text = f"✅ Осталось: {(bill.amount):.2f}{bill.currency}"
     await callback.message.edit_caption(
-        caption=callback.message.caption + f"\n{status_text}",
-        reply_markup=None
+        caption=callback.message.caption + f"\n{status_text}"
     )
     
-    # 🆕 УВЕДОМЛЕНИЕ ДОЛЖНИКУ
     try:
         await callback.message.bot.send_message(
             chat_id=debt.debtor_id,
@@ -183,7 +164,7 @@ async def handle_confirm_payment(callback: CallbackQuery):
                 f"📌 Долг: {debt.id}\n"
                 f"💰 Внесено: {paid_amount:.2f}{bill.currency}\n"
                 f"📊 Осталось: {debt.amount:.2f}{bill.currency}\n"
-                f"📝 Счёт: {bill.description}\n\n"
+                f"📝 Счёт: {bill.description}"
             )
         )
     except Exception as e:
@@ -192,12 +173,11 @@ async def handle_confirm_payment(callback: CallbackQuery):
     await callback.answer("✅ Оплата подтверждена")
 
 
-@router.callback_query(F.data.startswith("reject_"))
+@router.callback_query(F.data.startswith("reject_pay_"))
 async def handle_reject_payment(callback: CallbackQuery, state: FSMContext):
-    """Плательщик отклоняет частичную оплату"""
     parts = callback.data.split("_")
-    debt_id = parts[1]
-    paid_amount = float(parts[2])
+    debt_id = parts[2]
+    paid_amount = float(parts[3])
     payer_id = callback.from_user.id
     
     debt = await storage.get_debt_by_id(debt_id)
@@ -216,34 +196,30 @@ async def handle_reject_payment(callback: CallbackQuery, state: FSMContext):
         await callback.answer(f"ℹ️ Текущий статус {debt.status.value} не равен {DebtStatus.PENDING.value}", show_alert=True)
         return
     
-    # Сохраняем данные для запроса комментария
-    await state.update_data(debt=debt, paid_amount=paid_amount)
+    await state.update_data(debt=debt, bill=bill, paid_amount=paid_amount)
     await state.set_state(PaymentConfirmation.waiting_for_decision)
     
     await callback.message.answer(
         f"✍️ **Введите причину отклонения**\n\n"
         f"Сумма оплаты: {paid_amount:.2f}{bill.currency}\n\n"
-        f"Например: «Не получил средства, проверьте реквизиты»\n\n"
-        f"❌ /cancel — отменить отклонение"
+        f"Например: «Не получил средства, проверьте реквизиты»"
     )
     await callback.answer()
 
 
 @router.message(PaymentConfirmation.waiting_for_decision)
 async def handle_reject_reason(message: Message, state: FSMContext):
-    """Плательщик вводит причину отклонения"""
     data = await state.get_data()
     debt = data['debt']
     paid_amount = data['paid_amount']
+    bill = data['bill']
     
     reason = message.text.strip()
     
-    # Возвращаем долг в статус pending (paid_amount не увеличивается)
     await storage.update_debt_status(debt.id, DebtStatus.ACTIVE.value)
     
     await message.answer("❌ Оплата отклонена. Должник уведомлён.")
     
-    # 🆕 УВЕДОМЛЕНИЕ ДОЛЖНИКУ
     try:
         await message.bot.send_message(
             chat_id=debt.debtor_id,
@@ -258,10 +234,4 @@ async def handle_reject_reason(message: Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Failed to notify debtor about rejection: {e}")
     
-    await state.clear()
-
-
-@router.message(Command("cancel"), StateFilter(PaymentConfirmation.waiting_for_decision))
-async def cancel_rejection(message: Message, state: FSMContext):
-    await message.answer("❌ Отклонение отменено")
     await state.clear()

@@ -1,2 +1,0 @@
-user = ""
-print(user.lstrip('@'))

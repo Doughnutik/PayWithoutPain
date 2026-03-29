@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 
 from bot.states import BillCreation
 from bot.keyboards import get_split_mode_keyboard, get_yes_no_keyboard
-from storage.neo4j_storage import storage
+from storage import storage
 
 
 router = Router()
@@ -19,9 +19,14 @@ async def handle_description(message: Message, state: FSMContext):
 
 @router.message(BillCreation.waiting_for_amount)
 async def handle_amount(message: Message, state: FSMContext):
-    amount = float(message.text.replace(",", ".").strip())
+    text = message.text.replace(",", ".").strip()
+    if not text.replace(".", "", 1).isdigit():
+        await message.answer("❌ Введите число:")
+        return
+    
+    amount = float(text)
     if amount <= 0:
-        await message.answer("❌ Неверная сумма. Введите положительное число:")
+        await message.answer("❌ Введите положительное число:")
         return
     
     await state.update_data(amount=amount)
@@ -106,8 +111,13 @@ async def handle_split_manual(callback: CallbackQuery, state: FSMContext):
 
 @router.message(BillCreation.waiting_for_manual_amounts)
 async def handle_manual_amount(message: Message, state: FSMContext):
-    amount = float(message.text.replace(",", ".").strip())
-    if amount < 0:
+    text = message.text.replace(",", ".").strip()
+    if not text.replace(".", "", 1).isdigit():
+        await message.answer("❌ Введите число:")
+        return
+    
+    amount = float(text)
+    if amount <= 0:
         await message.answer("❌ Введите положительное число:")
         return
 
@@ -200,8 +210,7 @@ async def confirm_create_bill(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer(
         f"✅ Счёт `{bill.id}` создан!\n"
-        f"Осталось собрать: {bill.amount:.2f}{bill.currency}\n\n"
-        f"Должники получили уведомления."
+        f"Осталось собрать: {bill.amount:.2f}{bill.currency}"
     )
     await state.clear()
     await callback.answer()

@@ -3,7 +3,7 @@ from datetime import datetime
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
-from storage.neo4j_storage import storage, Debt, DebtStatus
+from storage import storage, Debt, DebtStatus
 from bot.keyboards import get_debt_keyboard
 from enum import Enum
 
@@ -33,21 +33,20 @@ class NotificationService:
             return NotificationResult.SKIPPED
 
         bill_id = debt.bill_id
-        bill_data = await storage.get_bill_by_id(bill_id)
+        bill = await storage.get_bill_by_id(bill_id)
 
         debtor_id = debt.debtor_id
-        debtor_data = await storage.get_user_by_id(debtor_id)
         
-        payer_id = bill_data.creator_id
-        payer_data = await storage.get_user_by_id(payer_id)
+        payer_id = bill.creator_id
+        payer = await storage.get_user_by_id(payer_id)
 
-        text = self.get_reminder_message(debt.notifications_count)[1] + MessageBuilder.build_debt_message(debt, bill_data, payer_data)
+        text = self.get_reminder_message(debt.notifications_count)[1] + MessageBuilder.build_debt_message(debt, bill, payer)
 
         try:
             await self.bot.send_message(
                 chat_id=debtor_id,
                 text=text,
-                reply_markup=get_debt_keyboard(debt.id)
+                reply_markup=get_debt_keyboard(debt.id, debt.status)
             )
 
             await storage.update_debt_notifications(debt.id)
@@ -82,7 +81,7 @@ class NotificationService:
         
         for debt in debts:
             last_notification = debt.last_notification_at if debt.last_notification_at else debt.created_at
-            hours_since_last = (cur_time - last_notification).total_seconds() / 3600
+            hours_since_last = (cur_time - last_notification).total_seconds()
             message = self.get_reminder_message(debt.notifications_count)
             
             if hours_since_last < message[0]:

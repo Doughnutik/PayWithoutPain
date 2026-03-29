@@ -1,12 +1,12 @@
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
 from bot.states import BillCreation, DebtStatusUpdate
-from storage.neo4j_storage import storage
+from storage import storage
 from services.message_builder import MessageBuilder
-from bot.keyboards import get_debt_keyboard
+from bot.keyboards import get_debt_keyboard, get_close_bill_keyboard
 
 
 router = Router()
@@ -25,9 +25,6 @@ async def cmd_start(message: Message):
         "/newbill — создать новый счёт\n"
         "/mybills — мои активные счета\n"
         "/mydebts — мои активные долги\n"
-        "/pause - отложить долг\n"
-        "/resume - возобновить долг\n"
-        "/delete - удалить счёт\n"
         "/help — справка"
     )
 
@@ -45,6 +42,7 @@ async def cmd_help(message: Message):
         "7. Если у должника сейчас нет возможности оплатить, долг можно поставить на паузу. Уведомления по нему перестанут приходить, но это увидит плательщик\n"
         "8. В любой момент долг можно снять с паузы\n"
         "9. Долг можно закрыть частично\n"
+        "10. Счёт можно закрыть самостоятельно, тогда все долги по нему закроются"
     )
 
 
@@ -69,7 +67,14 @@ async def cmd_mybills(message: Message):
         debts = await storage.get_debts_for_bill(bill.id)
         debtors = [await storage.get_user_by_id(debt.debtor_id) for debt in debts]
         text += MessageBuilder.build_bill_message(bill, list(zip(debts, debtors)))
+        
     await message.answer(text)
+    
+    for bill in bills:
+        await message.answer(
+            f"💰 **Счёт: {bill.id}**",
+            reply_markup=get_close_bill_keyboard(bill.id)
+        )
 
 
 @router.message(Command("mydebts"))
@@ -79,7 +84,6 @@ async def cmd_mydebts(message: Message):
         await message.answer("🎉 У вас нет активных долгов!")
         return
 
-    currencies = []
     text = "‼️ Ваши долги:\n\n"
     for debt in debts:
         bill = await storage.get_bill_by_id(debt.bill_id)
@@ -87,7 +91,6 @@ async def cmd_mydebts(message: Message):
         if not bill or not payer:
             await message.answer("Ошибка при загрузке данных по долгу. Пожалуйста, попробуйте снова.")
             continue
-        currencies.append(bill.currency)
         text += MessageBuilder.build_debt_message(
             debt,
             bill,
@@ -96,10 +99,10 @@ async def cmd_mydebts(message: Message):
 
     await message.answer(text)
     
-    for i in range(len(debts)):
+    for debt in debts:
         await message.answer(
-            f"💰 **Оплата: {debts[i].id}**",
-            reply_markup=get_debt_keyboard(debts[i].id, debts[i].amount, currencies[i])
+            f"💰 **Долг: {debt.id}**",
+            reply_markup=get_debt_keyboard(debt.id, debt.status)
         )
     
     

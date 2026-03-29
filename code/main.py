@@ -5,7 +5,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
 from neo4j_database.neo4j_client import neo4j_client
-from bot.handlers import commands_router, bill_creation_router, debt_status_router, payment_flow_router
+from bot.handlers import commands_router, bill_creation_router, debt_status_router, payment_flow_router, bill_close_router
 from services.scheduler import BotScheduler
 from services.notification_service import NotificationService
 
@@ -48,6 +48,7 @@ async def main():
     dp.include_router(bill_creation_router)
     dp.include_router(debt_status_router)
     dp.include_router(payment_flow_router)
+    dp.include_router(bill_close_router)
 
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)

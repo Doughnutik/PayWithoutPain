@@ -1,4 +1,4 @@
-from storage.neo4j_storage import Debt, User, Bill, DebtStatus, BillStatus
+from storage import Debt, User, Bill, DebtStatus, BillStatus
 
 class MessageBuilder:
     @staticmethod

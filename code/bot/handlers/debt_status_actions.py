@@ -1,41 +1,50 @@
-from aiogram import Router
-from aiogram.types import Message
-from bot.states import DebtStatusUpdate
-from storage.neo4j_storage import storage, DebtStatus
+from aiogram import Router, F
+from aiogram.types import CallbackQuery
+from storage import storage, DebtStatus
 
 
 router = Router()
+
+
+@router.callback_query(F.data.startswith("resume_"))
+async def handle_resume_debt(callback: CallbackQuery):
+    debt_id = callback.data.split("_")[1]
+    debt = await storage.get_debt_by_id(debt_id)
     
-    
-@router.message(DebtStatusUpdate.waiting_for_resume)
-async def handle_resume_status(message: Message):
-    debt_id = message.text.strip()
-    debt_info = await storage.get_debt_by_id(debt_id)
-    
-    if not debt_info or debt_info.debtor_id != message.from_user.id:
-        await message.answer("❌ Неверный id долга. Пожалуйста, попробуйте снова:")
+    if not debt:
+        await callback.answer("❌ Долг не найден", show_alert=True)
         return
     
-    if debt_info.status != DebtStatus.PAUSED:
-        await message.answer("❌ Этот долг не на паузе. Пожалуйста, введите id другого долга:")
+    if debt.status != DebtStatus.PAUSED:
+        await callback.answer(f"ℹ️ Текущий статус {debt.status.value} не равен {DebtStatus.PAUSED.value}", show_alert=True)
+        return
+
+    result = await storage.update_debt_status(debt_id, DebtStatus.ACTIVE.value)
+    if not result:
+        await callback.answer("❌ Не удалось обновить статус долга", show_alert=True)
         return
     
-    await storage.update_debt_status(debt_id, DebtStatus.ACTIVE.value)
-    await message.answer("▶️ Долг активен")
+    await callback.message.answer(f"Долг {debt.id} теперь имеет статус {DebtStatus.ACTIVE.value}")
+    await callback.answer()
     
 
-@router.message(DebtStatusUpdate.waiting_for_pause)
-async def handle_pause_status(message: Message):
-    debt_id = message.text.strip()
-    debt_info = await storage.get_debt_by_id(debt_id)
+@router.callback_query(F.data.startswith("pause_"))
+async def handle_pause_debt(callback: CallbackQuery):
+    debt_id = callback.data.split("_")[1]
+    debt = await storage.get_debt_by_id(debt_id)
     
-    if not debt_info or debt_info.debtor_id != message.from_user.id:
-        await message.answer("❌ Неверный id долга. Пожалуйста, попробуйте снова:")
+    if not debt:
+        await callback.answer("❌ Долг не найден", show_alert=True)
         return
     
-    if debt_info.status != DebtStatus.ACTIVE:
-        await message.answer("❌ Этот долг не активен. Пожалуйста, введите id другого долга:")
+    if debt.status != DebtStatus.ACTIVE:
+        await callback.answer(f"ℹ️ Текущий статус {debt.status.value} не равен {DebtStatus.ACTIVE.value}", show_alert=True)
+        return
+
+    result = await storage.update_debt_status(debt_id, DebtStatus.PAUSED.value)
+    if not result:
+        await callback.answer("❌ Не удалось обновить статус долга", show_alert=True)
         return
     
-    await storage.update_debt_status(debt_id, DebtStatus.PAUSED.value)
-    await message.answer("⏸️ Долг на паузе")
+    await callback.message.answer(f"Долг {debt.id} теперь имеет статус {DebtStatus.PAUSED.value}")
+    await callback.answer()

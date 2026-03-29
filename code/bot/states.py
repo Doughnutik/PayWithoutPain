@@ -20,3 +20,6 @@ class PaymentProof(StatesGroup):
     
 class PaymentConfirmation(StatesGroup):
     waiting_for_decision = State()
+    
+class BillClosure(StatesGroup):
+    waiting_for_confirmation = State()
