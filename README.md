@@ -1,7 +1,7 @@
 # PayWithoutPain
 Telegram bot for managing debts and payment statuses
 
-В папке code нужно создать файл .env и добавить следующие переменные окружения:
+В папке `code` нужно создать файл `.env` и добавить следующие переменные окружения:
 
 *BOT_TOKEN*=***YOUR_TELEGRAM_BOT_TOKEN***
 
@@ -12,3 +12,8 @@ Telegram bot for managing debts and payment statuses
 *NEO4J_PASSWORD*=***YOUR_NEO4J_PASSWORD***
 
 *NEO4J_AUTH*=***neo4j/YOUR_NEO4J_PASSWORD***
+
+Дальше запуск бота командой из папки `code`
+```bash
+docker-compose up -d --build
+```
