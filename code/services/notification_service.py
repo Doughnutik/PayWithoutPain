@@ -81,7 +81,7 @@ class NotificationService:
         
         for debt in debts:
             last_notification = debt.last_notification_at if debt.last_notification_at else debt.created_at
-            hours_since_last = (cur_time - last_notification).total_seconds() #TODO поделить на 3600 для часов
+            hours_since_last = (cur_time - last_notification).total_seconds() / 3600
             message = self.get_reminder_message(debt.notifications_count)
             
             if hours_since_last < message[0]:
