@@ -79,7 +79,7 @@ async def handle_split_equal(callback: CallbackQuery, state: FSMContext):
     await state.update_data(split_mode="equal", per_person=per_person)
     await state.set_state(BillCreation.confirmation)
 
-    text = "✅ **Подтверждение счёта**\n\n"
+    text = "✅ Подтверждение счёта\n\n"
     text += f"📝 Описание: {data['description']}\n"
     text += f"💰 Сумма: {amount:.2f}{data['currency']}\n"
     text += f"👥 Участников: {len(participants)}\n"
@@ -147,7 +147,7 @@ async def handle_manual_amount(message: Message, state: FSMContext):
 
     if next_index >= len(participants):
         await state.set_state(BillCreation.confirmation)
-        text = "✅ **Подтверждение счёта**\n\n"
+        text = "✅ Подтверждение счёта\n\n"
         text += f"📝 Описание: {data['description']}\n"
         text += f"💰 Сумма: {data['amount']:.2f}{data['currency']}\n"
         text += f"👥 Участников: {len(participants)}\n"

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
@@ -29,7 +29,7 @@ class NotificationService:
         ]
 
     async def send_debt_reminder(self, debt: Debt) -> NotificationResult:
-        if debt.status == DebtStatus.PAUSED:
+        if debt.status != DebtStatus.ACTIVE:
             return NotificationResult.SKIPPED
 
         bill_id = debt.bill_id
@@ -68,20 +68,20 @@ class NotificationService:
             return self.reminder_messages[count]
         return self.reminder_messages[-1]
 
-    async def send_all_reminders(self):
+    async def send_all_reminders(self) -> dict[str, int]:
         stats = {
             "sent": 0,
             "skipped": 0,
             "blocked": 0,
-            "errors": 0
+            "error": 0
         }
 
         debts = await storage.get_all_debts_for_reminder()
-        cur_time = datetime.now()
+        cur_time = datetime.now(timezone.utc)
         
         for debt in debts:
             last_notification = debt.last_notification_at if debt.last_notification_at else debt.created_at
-            hours_since_last = (cur_time - last_notification).total_seconds()
+            hours_since_last = (cur_time - last_notification).total_seconds() #TODO поделить на 3600 для часов
             message = self.get_reminder_message(debt.notifications_count)
             
             if hours_since_last < message[0]:
@@ -89,3 +89,5 @@ class NotificationService:
             
             result = await self.send_debt_reminder(debt)
             stats[result.value] += 1
+        
+        return stats

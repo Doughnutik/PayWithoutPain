@@ -32,7 +32,7 @@ async def cmd_start(message: Message):
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
-        "📖 **Справка**\n\n"
+        "📖 Справка\n\n"
         "1. Создайте счёт через /newbill\n"
         "2. Добавьте участников (@username)\n"
         "3. Укажите сумму каждого вручную или разделите поровну\n"
@@ -50,7 +50,7 @@ async def cmd_help(message: Message):
 async def cmd_newbill(message: Message, state: FSMContext):
     await state.set_state(BillCreation.waiting_for_description)
     await message.answer(
-        "📝 **Создание счёта**\n\n"
+        "📝 Создание счёта\n\n"
         "Введите описание счёта (например: «Ужин в кафе»):"
     )
 
@@ -72,7 +72,7 @@ async def cmd_mybills(message: Message):
     
     for bill in bills:
         await message.answer(
-            f"💰 **Счёт: {bill.id}**",
+            f"💰 Счёт: {bill.id}",
             reply_markup=get_close_bill_keyboard(bill.id)
         )
 
@@ -101,7 +101,7 @@ async def cmd_mydebts(message: Message):
     
     for debt in debts:
         await message.answer(
-            f"💰 **Долг: {debt.id}**",
+            f"💰 Долг: {debt.id}",
             reply_markup=get_debt_keyboard(debt.id, debt.status)
         )
     

@@ -13,10 +13,10 @@ class MessageBuilder:
             status_text = "📸 Скриншот отправлен"
         elif debt.status == DebtStatus.PAUSED:
             status_text = "⏸️ Долг на паузе"
-        text = f"""📌 **Долг: {debt.id}**
-📋 **Описание: {bill.description}**
-💰 **Ваш долг: {debt.amount:.2f}{bill.currency}**
-👤 **Плательщик: {payer_name}**
+        text = f"""📌 Долг: {debt.id}
+📋 Описание: {bill.description}
+💰 Ваш долг: {debt.amount:.2f}{bill.currency}
+👤 Плательщик: {payer_name}
     Статус: {status_text}\n
 """
 
@@ -27,9 +27,9 @@ class MessageBuilder:
         if bill.status == BillStatus.CLOSED:
             return f"✅ Счёт {bill.id} {bill.description} закрыт."
         
-        text = f"""📌 **Счёт: {bill.id}**
-💰 **Сумма: {bill.amount:.2f}{bill.currency}**
-📋 **Описание: {bill.description}**\n
+        text = f"""📌 Счёт: {bill.id}
+💰 Сумма: {bill.amount:.2f}{bill.currency}
+📋 Описание: {bill.description}\n
 """
 
         for debt, debtor in debts_info:
@@ -37,7 +37,7 @@ class MessageBuilder:
                 continue
             
             debtor_name = '@' + debtor.username if debtor.username else debtor.first_name
-            text += f"👤 **Должник: {debtor_name} - {debt.amount:.2f}{bill.currency}**\n"
+            text += f"👤 Должник: {debtor_name} - {debt.amount:.2f}{bill.currency}\n"
             
             if debt.status == DebtStatus.ACTIVE:
                 status_text = "⏳ Ожидает оплаты"

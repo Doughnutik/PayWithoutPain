@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -62,7 +62,7 @@ class InMemoryStorage:
         if bill_id not in self.bills:
             return None
         self.bills[bill_id].amount -= delta
-        self.bills[bill_id].changed_at = datetime.now()
+        self.bills[bill_id].changed_at = datetime.now(timezone.utc)
         if self.bills[bill_id].amount <= 0:
             self.bills[bill_id].status = BillStatus.CLOSED
         return self.bills[bill_id]
@@ -86,7 +86,7 @@ class InMemoryStorage:
         if debt_id not in self.debts:
             return None
         self.debts[debt_id].status = DebtStatus(status)
-        self.debts[debt_id].changed_at = datetime.now()
+        self.debts[debt_id].changed_at = datetime.now(timezone.utc)
         return self.debts[debt_id]
 
     async def get_user_debts(self, telegram_id: int) -> list[Debt]:
@@ -103,7 +103,7 @@ class InMemoryStorage:
         if debt_id not in self.debts:
             return None
         self.debts[debt_id].amount -= delta
-        self.debts[debt_id].changed_at = datetime.now()
+        self.debts[debt_id].changed_at = datetime.now(timezone.utc)
         if self.debts[debt_id].amount <= 0:
             self.debts[debt_id].status = DebtStatus.CLOSED
         return self.debts[debt_id]
@@ -112,7 +112,7 @@ class InMemoryStorage:
         if debt_id not in self.debts:
             return None
         self.debts[debt_id].notifications_count += 1
-        self.debts[debt_id].last_notification_at = datetime.now()
+        self.debts[debt_id].last_notification_at = datetime.now(timezone.utc)
         return self.debts[debt_id]
         
     async def get_all_debts_for_reminder(self) -> list[Debt]:

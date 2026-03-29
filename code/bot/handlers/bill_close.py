@@ -21,7 +21,7 @@ async def handle_close_bill(callback: CallbackQuery, state: FSMContext):
     await state.set_state(BillClosure.waiting_for_confirmation)
     await state.update_data(bill=bill)
 
-    text = f"❓️ **Закрытие счёта {bill.id}**\n\n"
+    text = f"❓️ Закрытие счёта {bill.id}\n\n"
     text += f"📝 Описание: {bill.description}\n"
     text += f"💰 Сумма: {bill.amount:.2f}{bill.currency}\n\n"
     text += "Вы уверены, что хотите закрыть счёт? Это действие нельзя будет отменить!"

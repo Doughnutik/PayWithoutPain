@@ -84,7 +84,7 @@ async def handle_screenshot_photo(message: Message, state: FSMContext):
     await storage.update_debt_status(debt.id, DebtStatus.PENDING.value)
     
     await message.answer(
-        f"✅ **Скриншот отправлен!**\n\n"
+        f"✅ Скриншот отправлен!\n\n"
         f"💰 Сумма оплаты: {paid_amount:.2f}{bill.currency}\n"
         f"📝 Счёт: {bill.description}\n\n"
         f"Ожидайте подтверждения от плательщика."
@@ -93,7 +93,7 @@ async def handle_screenshot_photo(message: Message, state: FSMContext):
     debtor_name = '@' + message.from_user.username if message.from_user.username else message.from_user.first_name
     try:
         caption = (
-            f"🔔 **Новая оплата по счёту**\n\n"
+            f"🔔 Новая оплата по счёту\n\n"
             f"👤 Должник: {debtor_name}\n"
             f"💰 Сумма оплаты: {paid_amount:.2f}{bill.currency}\n"
             f"📊 Общий долг: {debt.amount:.2f}{bill.currency}\n"
@@ -160,7 +160,7 @@ async def handle_confirm_payment(callback: CallbackQuery):
         await callback.message.bot.send_message(
             chat_id=debt.debtor_id,
             text=(
-                f"✅ **Оплата подтверждена!**\n\n"
+                f"✅ Оплата подтверждена!\n\n"
                 f"📌 Долг: {debt.id}\n"
                 f"💰 Внесено: {paid_amount:.2f}{bill.currency}\n"
                 f"📊 Осталось: {debt.amount:.2f}{bill.currency}\n"
@@ -200,7 +200,7 @@ async def handle_reject_payment(callback: CallbackQuery, state: FSMContext):
     await state.set_state(PaymentConfirmation.waiting_for_decision)
     
     await callback.message.answer(
-        f"✍️ **Введите причину отклонения**\n\n"
+        f"✍️ Введите причину отклонения\n\n"
         f"Сумма оплаты: {paid_amount:.2f}{bill.currency}\n\n"
         f"Например: «Не получил средства, проверьте реквизиты»"
     )
@@ -224,10 +224,10 @@ async def handle_reject_reason(message: Message, state: FSMContext):
         await message.bot.send_message(
             chat_id=debt.debtor_id,
             text=(
-                f"❌ **Оплата отклонена**\n\n"
+                f"❌ Оплата отклонена\n\n"
                 f"📌 Долг: {debt.id}\n"
                 f"💰 Сумма: {paid_amount:.2f}{bill.currency}\n\n"
-                f"📝 **Причина:**\n{reason}\n\n"
+                f"📝 Причина:\n{reason}\n\n"
                 f"Пожалуйста, проверьте транзакцию и отправьте скриншот повторно."
             )
         )
