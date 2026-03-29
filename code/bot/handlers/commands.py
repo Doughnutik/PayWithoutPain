@@ -3,11 +3,14 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from bot.states import BillCreation, DebtStatusUpdate, PaymentProof
+from bot.states import BillCreation, DebtStatusUpdate
 from storage.neo4j_storage import storage
 from services.message_builder import MessageBuilder
+from bot.keyboards import get_debt_keyboard
+
 
 router = Router()
+
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
@@ -22,9 +25,9 @@ async def cmd_start(message: Message):
         "/newbill — создать новый счёт\n"
         "/mybills — мои активные счета\n"
         "/mydebts — мои активные долги\n"
-        "/pay - оплатить (можно частично) долг\n"
         "/pause - отложить долг\n"
         "/resume - возобновить долг\n"
+        "/delete - удалить счёт\n"
         "/help — справка"
     )
 
@@ -76,6 +79,7 @@ async def cmd_mydebts(message: Message):
         await message.answer("🎉 У вас нет активных долгов!")
         return
 
+    currencies = []
     text = "‼️ Ваши долги:\n\n"
     for debt in debts:
         bill = await storage.get_bill_by_id(debt.bill_id)
@@ -83,6 +87,7 @@ async def cmd_mydebts(message: Message):
         if not bill or not payer:
             await message.answer("Ошибка при загрузке данных по долгу. Пожалуйста, попробуйте снова.")
             continue
+        currencies.append(bill.currency)
         text += MessageBuilder.build_debt_message(
             debt,
             bill,
@@ -90,6 +95,12 @@ async def cmd_mydebts(message: Message):
         )
 
     await message.answer(text)
+    
+    for i in range(len(debts)):
+        await message.answer(
+            f"💰 **Оплата: {debts[i].id}**",
+            reply_markup=get_debt_keyboard(debts[i].id, debts[i].amount, currencies[i])
+        )
     
     
 @router.message(Command("resume"))
@@ -104,11 +115,4 @@ async def cmd_pause(message: Message, state: FSMContext):
     await state.set_state(DebtStatusUpdate.waiting_for_pause)
     await message.answer(
         "Введите id долга, который хотите поставить на паузу:"
-    )
-
-@router.message(Command("pay"))
-async def cmd_pay(message: Message, state: FSMContext):
-    await state.set_state()
-    await message.answer(
-        "Введите id долга, который хотите оплатить:"
     )

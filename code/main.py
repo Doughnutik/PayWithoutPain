@@ -5,7 +5,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
 from neo4j_database.neo4j_client import neo4j_client
-from bot.handlers import commands_router, bill_creation_router, debt_actions_router
+from bot.handlers import commands_router, bill_creation_router, debt_status_router, payment_flow_router
 from services.scheduler import BotScheduler
 from services.notification_service import NotificationService
 
@@ -30,7 +30,7 @@ async def on_startup(bot: Bot):
     logging.info("✅ Notification scheduler started")
 
 
-async def on_shutdown(bot: Bot):
+async def on_shutdown():
     logging.info("Bot shutting down, closing Neo4j connection...")
     await neo4j_client.close()
     logging.info("✅ Neo4j connection closed")
@@ -46,7 +46,8 @@ async def main():
 
     dp.include_router(commands_router)
     dp.include_router(bill_creation_router)
-    dp.include_router(debt_actions_router)
+    dp.include_router(debt_status_router)
+    dp.include_router(payment_flow_router)
 
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)

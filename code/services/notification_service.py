@@ -4,7 +4,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from storage.neo4j_storage import storage, Debt, DebtStatus
-from bot.keyboards import get_payment_keyboard
+from bot.keyboards import get_debt_keyboard
 from enum import Enum
 
 from services.message_builder import MessageBuilder
@@ -47,8 +47,7 @@ class NotificationService:
             await self.bot.send_message(
                 chat_id=debtor_id,
                 text=text,
-                reply_markup=get_payment_keyboard(debt.id),
-                parse_mode="Markdown"
+                reply_markup=get_debt_keyboard(debt.id)
             )
 
             await storage.update_debt_notifications(debt.id)

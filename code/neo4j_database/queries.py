@@ -54,10 +54,11 @@ RETURN bill ORDER BY bill.changed_at DESC
 DECREASE_BILL_AMOUNT = """
 MATCH (bill:Bill {id: $bill_id})
 SET bill.amount = bill.amount - $delta,
-    bill.changed_at = datetime()
-WITH bill
-WHERE bill.amount <= 0
-SET bill.status = 'closed'
+    bill.changed_at = datetime(),
+    bill.status = CASE 
+        WHEN bill.amount - $delta <= 0 THEN 'closed'
+        ELSE 'active'
+    END
 RETURN bill
 """
 
@@ -102,10 +103,11 @@ RETURN debt
 DECREASE_DEBT_AMOUNT = """
 MATCH (debt:Debt {id: $debt_id})
 SET debt.amount = debt.amount - $delta,
-    debt.changed_at = datetime()
-WITH debt
-WHERE debt.amount <= 0
-SET debt.status = 'closed'
+    debt.changed_at = datetime(),
+    debt.status = CASE 
+        WHEN debt.amount - $delta <= 0 THEN 'closed'
+        ELSE 'active'
+    END
 RETURN debt
 """
 

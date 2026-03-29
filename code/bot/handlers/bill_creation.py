@@ -5,7 +5,6 @@ from aiogram.fsm.context import FSMContext
 from bot.states import BillCreation
 from bot.keyboards import get_split_mode_keyboard, get_yes_no_keyboard
 from storage.neo4j_storage import storage
-from services.notification_service import NotificationService
 
 
 router = Router()
