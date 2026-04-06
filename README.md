@@ -1,19 +1,25 @@
 # PayWithoutPain
-Telegram bot for managing debts and payment statuses
+Телеграм бот, который автоматизирует процесс контроля и фиксации оплаты долгов за общие счета.
 
-В папке `code` нужно создать файл `.env` и добавить следующие переменные окружения:
+Сценарий: компания людей хочет оплатить нераздельный счет и выбирает для этого одного человека. Хотелось бы иметь удобный способ отслеживать долги оставшихся людей. В этом и поможет бот **PayWithoutPain**. Более подробное описание есть в файлах `PayWithoutPain OnePager.pdf` и `PRD.pdf`
 
-*BOT_TOKEN*=***YOUR_TELEGRAM_BOT_TOKEN***
+### Запуск бота
 
-*NEO4J_URI*=***bolt://neo4j:7687***
+1) Создать бота в телеграме через бота `BotFather`. Скопировать его токен
 
-*NEO4J_USER*=***neo4j***
+2) В папке `code` нужно создать файл `.env` и добавить следующие переменные окружения:
 
-*NEO4J_PASSWORD*=***YOUR_NEO4J_PASSWORD***
+	*BOT_TOKEN*=***YOUR_TELEGRAM_BOT_TOKEN***
 
-*NEO4J_AUTH*=***neo4j/YOUR_NEO4J_PASSWORD***
+	*NEO4J_URI*=***bolt://neo4j:7687***
 
-Дальше запуск бота командой из папки `code`
-```bash
-docker-compose up -d --build
-```
+	*NEO4J_USER*=***neo4j***
+
+	*NEO4J_PASSWORD*=***YOUR_NEO4J_PASSWORD***
+
+	*NEO4J_AUTH*=***neo4j/YOUR_NEO4J_PASSWORD***
+
+3) Запустить докер контейнер с сервером командой из папки `code`
+	```bash
+	docker-compose up -d --build
+	```
